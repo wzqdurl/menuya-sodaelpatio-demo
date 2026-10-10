@@ -149,6 +149,29 @@ tailwind.config = {
   </div>
 </aside>
 
+<!-- PANTALLA SEGUIMIENTO PEDIDO -->
+<div id="trackOverlay" class="fixed inset-0 z-50 hidden bg-cream overflow-y-auto">
+  <div class="max-w-xl mx-auto min-h-screen flex flex-col px-5 py-6">
+    <div class="text-center mb-6">
+      <div class="text-5xl mb-2">🎉</div>
+      <h2 class="text-xl font-black uppercase">¡Pedido enviado!</h2>
+      <p class="text-sm opacity-60">Soda El Patio lo está preparando</p>
+      <p class="mt-2 inline-block bg-white border-[3px] border-ink rounded-full px-4 py-1 text-sm font-black">Pedido <span id="orderNum" class="text-brand">#0000</span></p>
+    </div>
+    <div id="trackSteps" class="space-y-3 mb-6"></div>
+    <div class="neo-card p-4 mb-4">
+      <p class="font-extrabold text-sm mb-2">📋 Tu pedido</p>
+      <div id="trackItems" class="text-sm space-y-1"></div>
+      <div class="flex justify-between mt-2 pt-2 border-t-2 border-ink/10">
+        <span class="font-extrabold">Total</span>
+        <span id="trackTotal" class="font-black">₡0</span>
+      </div>
+    </div>
+    <button id="backToMenu" class="neo-btn bg-brand rounded-full py-3.5 font-black">Volver al menú</button>
+    <p class="text-center text-[11px] opacity-50 mt-3">Muestra: los estados avanzan solos para demostrar el sistema en vivo</p>
+  </div>
+</div>
+
 <!-- FOOTER -->
 <footer class="text-center px-6 pt-8 pb-6">
   <div class="neo-card inline-block px-6 py-4">
@@ -317,6 +340,67 @@ ${lines.join("\n")}
 
 Total: ${fmt(cartTotal())}`;
   window.open(`https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(msg)}`, "_blank");
+
+  // Mostrar pantalla de seguimiento (demo del sistema en vivo)
+  showTracking(name, tipoTxt);
+});
+
+// Seguimiento del pedido en vivo (demo)
+const TRACK_STEPS = [
+  { icon: "📩", label: "Recibido", desc: "Soda El Patio recibió tu pedido" },
+  { icon: "👨‍🍳", label: "En preparación", desc: "Están cocinando tu pedido" },
+  { icon: "✅", label: "Listo", desc: tipoPedido === "llevar" ? "Pasá a recogerlo" : "El repartidor va en camino" },
+  { icon: "🎉", label: "Entregado", desc: "¡Buen provecho!" },
+];
+let trackTimer = null;
+function showTracking(name, tipoTxt) {
+  closeDrawer();
+  const ov = document.getElementById("trackOverlay");
+  ov.classList.remove("hidden");
+  document.body.style.overflow = "hidden";
+  document.getElementById("orderNum").textContent = "#" + Math.floor(1000 + Math.random() * 9000);
+  // Items
+  const box = document.getElementById("trackItems");
+  box.innerHTML = "";
+  cart.forEach((q, id) => {
+    const it = MENU.find(m => m.id === id);
+    const p = document.createElement("p");
+    p.textContent = `• ${q}x ${it.name} — ${fmt(it.price * q)}`;
+    box.appendChild(p);
+  });
+  document.getElementById("trackTotal").textContent = fmt(cartTotal());
+  // Steps
+  const stepsBox = document.getElementById("trackSteps");
+  let stepIdx = 0;
+  function paintSteps() {
+    stepsBox.innerHTML = "";
+    TRACK_STEPS.forEach((s, i) => {
+      const done = i < stepIdx, cur = i === stepIdx;
+      const d = document.createElement("div");
+      d.className = "neo-card p-3 flex items-center gap-3 fade-in" + (cur ? " !bg-brand" : "") + (done ? " opacity-70" : "");
+      d.innerHTML = `
+        <div class="w-11 h-11 shrink-0 rounded-xl ${cur ? "bg-ink text-white" : "bg-cream"} border-2 border-ink flex items-center justify-center text-2xl">${done ? "✓" : s.icon}</div>
+        <div class="flex-1">
+          <p class="font-extrabold text-sm">${s.label} ${cur ? '<span class="text-xs bg-ink text-white rounded-full px-2 py-0.5 ml-1">AHORA</span>' : ""}</p>
+          <p class="text-xs opacity-60">${s.desc}</p>
+        </div>`;
+      stepsBox.appendChild(d);
+    });
+  }
+  paintSteps();
+  clearInterval(trackTimer);
+  trackTimer = setInterval(() => {
+    stepIdx++;
+    if (stepIdx >= TRACK_STEPS.length) { clearInterval(trackTimer); return; }
+    paintSteps();
+  }, 4000);
+  // Limpiar carrito para la próxima
+  cart.clear(); renderMenu(); renderCart();
+}
+document.getElementById("backToMenu").addEventListener("click", () => {
+  document.getElementById("trackOverlay").classList.add("hidden");
+  document.body.style.overflow = "";
+  clearInterval(trackTimer);
 });
 
 renderMenu();
